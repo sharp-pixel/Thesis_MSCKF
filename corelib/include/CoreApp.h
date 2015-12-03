@@ -17,6 +17,8 @@ Copyright - Jialei Jin, jjlfolk@gmail.com
 
 class CoreApp {
 public:
+  CoreApp();
+private:
   image_transport::SubscriberFilter image_sub_;
   message_filters::Subscriber<sensor_msgs::CameraInfo> image_info_sub_;
   typedef message_filters::sync_policies::ExactTime<

@@ -6,6 +6,7 @@ Copyright - Jialei Jin, jjlfolk@gmail.com
 #define SensorData_H_
 
 #include <ros/ros.h>
+#include <ros/time.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -34,6 +35,17 @@ struct PNP_RESULT {
   friend std::ostream& operator<<(std::ostream &strm, const PNP_RESULT &a) {
     return strm << "Translation: " << a.tvec << ", Rotation: " << a.rvec << ", inlier number: " << a.inliers;
   }
+  double normofTransform() {
+    return fabs(cv::min(cv::norm(rvec), 2*M_PI-cv::norm(rvec))) + fabs(cv::norm(tvec));
+  }
+};
+
+struct TIME_STAMP {
+  int64 sec;
+  int64 nsec;
+  TIME_STAMP(const ros::Time& t) {sec = t.sec; nsec = t.nsec;}
+  TIME_STAMP() {}
+  ros::Time toRosTime() {return ros::Time(sec, nsec);}
 };
 
 class SensorData {
@@ -51,6 +63,7 @@ public:
   std::vector<cv::KeyPoint> keyPoints;
   cv::Mat descriptors;
   int64 id;
+  TIME_STAMP timeStamp;
 
 private:
   void convertCV(const sensor_msgs::ImageConstPtr& imageMsg, cv::Mat& to);

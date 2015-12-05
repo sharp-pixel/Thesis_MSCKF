@@ -33,6 +33,8 @@ CoreApp::CoreApp(): voMode(0) {
       image_sub_, image_info_sub_);
     imageExactSync_->registerCallback(boost::bind(&CoreApp::cameraCallback, this, _1, _2));
   }
+
+  odom_pub_ = nh.advertise<nav_msgs::Odometry>("basic_odom", 50);
 }
 
 // TODO: develop mono rgb vo
@@ -44,16 +46,61 @@ void CoreApp::cameraCallback(const sensor_msgs::ImageConstPtr& imageMsg,
 
 void CoreApp::depthCallback(const sensor_msgs::ImageConstPtr& imageMsg,
   const sensor_msgs::CameraInfoConstPtr& camInfoMsg, const sensor_msgs::ImageConstPtr& depthMsg) {
-  std::cout << "..." << std::endl;
+  int minInliers = 5;
+  double maxNorm = 0.3;
+  // std::cout << "..." << std::endl;
   // std::cout << imageMsg->header.stamp << std::endl;
   // std::cout << camInfoMsg->header.stamp << std::endl;
   // std::cout << depthMsg->header.stamp << std::endl;
-  previousFrame = currentFrame;
   currentFrame = new SensorData(imageMsg, camInfoMsg, depthMsg);
-  std::cout << currentFrame->id << std::endl;
-  if (currentFrame->id > 0) {
-    CameraModel cam(camInfoMsg);
-    PNP_RESULT r = currentFrame->estimateMotion(previousFrame, cam);
-    std::cout << r << std::endl;
+  // Drop first 3 frame
+  if (currentFrame->id == 3) {
+    odoms = new Odometry(new OdometryNode(currentFrame));
   }
+  else if (currentFrame->id > 4) {
+    CameraModel cam(camInfoMsg);
+    PNP_RESULT r = currentFrame->estimateMotion(odoms->last()->sensorData, cam);
+    // std::cout << r << std::endl;
+
+    if (r.inliers < minInliers) return;
+    double norm = r.normofTransform();
+    if (norm >= maxNorm) return;
+
+    OdometryNode* newOdomNode = new OdometryNode(odoms->last(), r.tvec, r.rvec, currentFrame);
+    odoms->addOdomNode(newOdomNode);
+    std::cout << "odoms size: " << odoms->size() << std::endl;
+
+    nav_msgs::Odometry odomMsg;
+    geometry_msgs::TransformStamped odomTf;
+    getOdomMsg(newOdomNode, odomMsg, odomTf);
+    odom_broadcaster_.sendTransform(odomTf);
+    odom_pub_.publish(odomMsg);
+  }
+}
+
+void CoreApp::getOdomMsg(OdometryNode* odomNode, nav_msgs::Odometry& odomMsg, geometry_msgs::TransformStamped& odomTf) {
+  geometry_msgs::Quaternion odomQuat;
+  geometry_msgs::TransformStamped odom_trans;
+
+  vector<double> t = odomNode->getT();
+  Eigen::Quaterniond q = odomNode->getQ();
+  odomQuat.x = q.x(); odomQuat.y = q.y(); odomQuat.z = q.z(); odomQuat.w = q.w();
+
+  odomTf.header.stamp = odomNode->sensorData->timeStamp.toRosTime();
+  odomTf.header.frame_id = "odom";
+  odomTf.child_frame_id = "basic_odom";
+
+  odomTf.transform.translation.x = t[0];
+  odomTf.transform.translation.y = t[1];
+  odomTf.transform.translation.z = t[2];
+  odomTf.transform.rotation = odomQuat;
+
+  odomMsg.header.stamp = odomNode->sensorData->timeStamp.toRosTime();
+  odomMsg.header.frame_id = "odom";
+  odomMsg.child_frame_id = "basic_odom";
+
+  odomMsg.pose.pose.position.x = t[0];
+  odomMsg.pose.pose.position.y = t[1];
+  odomMsg.pose.pose.position.z = t[2];
+  odomMsg.pose.pose.orientation = odomQuat;
 }

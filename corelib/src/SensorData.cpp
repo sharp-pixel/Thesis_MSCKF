@@ -13,7 +13,7 @@ SensorData::SensorData(const sensor_msgs::ImageConstPtr& imageMsg,
   rosImageMsg = imageMsg;
   convertCV(imageMsg, this->cvRgbImage);
   genFeatures();
-
+  timeStamp = TIME_STAMP(imageMsg->header.stamp);
   // cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
   // cv::imshow( "Display window", cvRgbImage );
   // cv::waitKey(0);

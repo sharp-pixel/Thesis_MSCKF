@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 
   CoreApp* app = new CoreApp();
 
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(30);
 
   /**
    * A count of how many messages we have sent. This is used to create

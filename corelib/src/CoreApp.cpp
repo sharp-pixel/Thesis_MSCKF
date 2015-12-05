@@ -4,7 +4,6 @@ Copyright - Jialei Jin, jjlfolk@gmail.com
 
 
 #include "CoreApp.h"
-#include "ImageData.h"
 
 CoreApp::CoreApp(): voMode(0) {
   ros::NodeHandle nh;
@@ -25,9 +24,9 @@ CoreApp::CoreApp(): voMode(0) {
   depth_sub_.subscribe(depth_it, depth_nh.resolveName("image_raw"), 1, hintsDepth);
 
   if (voMode == 0) {
-    depthExactSync_ = new message_filters::Synchronizer<MyDepthExactSyncPolicy>(MyDepthExactSyncPolicy(10),
+    depthApproxSync_ = new message_filters::Synchronizer<MyDepthApproxSyncPolicy>(MyDepthApproxSyncPolicy(10),
       image_sub_, image_info_sub_, depth_sub_);
-    depthExactSync_->registerCallback(boost::bind(&CoreApp::depthCallback, this, _1, _2, _3));
+    depthApproxSync_->registerCallback(boost::bind(&CoreApp::depthCallback, this, _1, _2, _3));
   }
   else {
     imageExactSync_ = new message_filters::Synchronizer<MyImageExactSyncPolicy>(MyImageExactSyncPolicy(10),
@@ -36,13 +35,25 @@ CoreApp::CoreApp(): voMode(0) {
   }
 }
 
+// TODO: develop mono rgb vo
 void CoreApp::cameraCallback(const sensor_msgs::ImageConstPtr& imageMsg,
   const sensor_msgs::CameraInfoConstPtr& camInfoMsg) {
-  ImageData* rgb = new ImageData(imageMsg, camInfoMsg);
+  SensorData* rgb = new SensorData(imageMsg, camInfoMsg);
+  std::cout << "..." << std::endl;
 }
 
 void CoreApp::depthCallback(const sensor_msgs::ImageConstPtr& imageMsg,
   const sensor_msgs::CameraInfoConstPtr& camInfoMsg, const sensor_msgs::ImageConstPtr& depthMsg) {
-  ImageData* rgb = new ImageData(imageMsg, camInfoMsg);
-  ImageData* depth = new ImageData(depthMsg);
+  std::cout << "..." << std::endl;
+  // std::cout << imageMsg->header.stamp << std::endl;
+  // std::cout << camInfoMsg->header.stamp << std::endl;
+  // std::cout << depthMsg->header.stamp << std::endl;
+  previousFrame = currentFrame;
+  currentFrame = new SensorData(imageMsg, camInfoMsg, depthMsg);
+  std::cout << currentFrame->id << std::endl;
+  if (currentFrame->id > 0) {
+    CameraModel cam(camInfoMsg);
+    PNP_RESULT r = currentFrame->estimateMotion(previousFrame, cam);
+    std::cout << r << std::endl;
+  }
 }

@@ -24,5 +24,9 @@ SET(Libraries
 
 include_directories(corelib/include)
 
-add_executable(vio_mcekf corelib/src/CoreNode.cpp corelib/src/CoreApp.cpp corelib/src/ImageData.cpp)
+add_executable(vio_mcekf
+  corelib/src/CoreNode.cpp
+  corelib/src/CoreApp.cpp
+  corelib/src/SensorData.cpp
+)
 target_link_libraries(vio_mcekf ${Libraries})
